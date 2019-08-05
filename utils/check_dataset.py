@@ -10,8 +10,8 @@ Checks all images from the AVA dataset if they have corrupted jpegs, and lists t
 Removal must be done manually !
 '''
 
-base_images_path = r'D:\Yue\Documents\Datasets\AVA_dataset\images\images\\'
-ava_dataset_path = r'D:\Yue\Documents\Datasets\AVA_dataset\AVA.txt'
+base_images_path = r'/home/cola/work/nenet/nima/images-data/AVA_dataset/images/images/'
+ava_dataset_path = r'/home/cola/work/nenet/nima/images-data/AVA_dataset/AVA.txt'
 
 IMAGE_SIZE = 128
 BASE_LEN = len(base_images_path) - 1
@@ -67,7 +67,7 @@ with sess.as_default():
         try:
             sess.run(img, feed_dict={fn: path})
         except Exception as e:
-            print(path, "failed to load !")
+            print(path, "failed to load !" + e.message)
             print()
             count += 1
 

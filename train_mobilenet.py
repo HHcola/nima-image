@@ -90,8 +90,9 @@ callbacks = [checkpoint, tensorboard]
 batchsize = 200
 epochs = 20
 
+# // 取整除 保留一位小数
 model.fit_generator(train_generator(batchsize=batchsize),
-                    steps_per_epoch=250000,
+                    steps_per_epoch=(250000. // batchsize),
                     epochs=epochs, verbose=1, callbacks=callbacks,
                     validation_data=val_generator(batchsize=batchsize),
-                    validation_steps=5000)
+                    validation_steps=(5000. // batchsize))

@@ -88,11 +88,13 @@ checkpoint = ModelCheckpoint(model_weights_path, monitor='val_loss', verbose=1, 
 tensorboard = TensorBoardBatch()
 callbacks = [checkpoint, tensorboard]
 
-batchsize = 200
+batchsize = 100
 epochs = 20
 
+# steps_per_epoch 一个epoch包含的步数（每一步是一个batch的数据输入） steps_per_epoch = image_size(63461) / batchsize
+#  validation_steps=ceil(val_dataset_size/batch_size),
 model.fit_generator(train_generator(batchsize=batchsize),
-                    steps_per_epoch=(250000. // batchsize),
+                    steps_per_epoch=100,
                     epochs=epochs, verbose=1, callbacks=callbacks,
                     validation_data=val_generator(batchsize=batchsize),
-                    validation_steps=(5000. // batchsize))
+                    validation_steps=100)

@@ -20,6 +20,7 @@ train_scores = []
 print("Loading training set and val set")
 with open(ava_dataset_path, mode='r') as f:
     lines = f.readlines()
+    image_size = 0
     for i, line in enumerate(lines):
         token = line.split()
         id = int(token[1])
@@ -31,6 +32,10 @@ with open(ava_dataset_path, mode='r') as f:
         if os.path.exists(file_path):
             train_image_paths.append(file_path)
             train_scores.append(values)
+            image_size = image_size + 1
+
+        if image_size >= 10000:
+            break
 
         count = 255000 // 20
         if i % count == 0 and i != 0:
