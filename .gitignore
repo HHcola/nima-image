@@ -1,5 +1,8 @@
 # ignore this files
+.idea
 /images
 /score
 /weights
+/logs
+*.pyc
 

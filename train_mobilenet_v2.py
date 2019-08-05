@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*
 import os
 
+from keras.applications import MobileNetV2
 from keras.models import Model
 from keras.layers import Dense, Dropout
-from keras.applications.mobilenet import MobileNet
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
 from keras import backend as K
@@ -58,7 +58,7 @@ def earth_mover_loss(y_true, y_pred):
 
 image_size = 224
 
-base_model = MobileNet((image_size, image_size, 3), alpha=1, include_top=False, pooling='avg')
+base_model = MobileNetV2((image_size, image_size, 3), alpha=1.0, include_top=False, pooling='avg')
 for layer in base_model.layers:
     layer.trainable = False
 
@@ -78,11 +78,12 @@ model.summary()
 optimizer = Adam(lr=1e-3)
 model.compile(optimizer, loss=earth_mover_loss)
 
+model_weights_path = 'weights/mobilenet_v2_weights.h5'
 # load weights from trained model if it exists
-if os.path.exists('weights/mobilenet_weights.h5'):
-    model.load_weights('weights/mobilenet_weights.h5')
+if os.path.exists(model_weights_path):
+    model.load_weights(model_weights_path)
 
-checkpoint = ModelCheckpoint('weights/mobilenet_weights.h5', monitor='val_loss', verbose=1, save_weights_only=True, save_best_only=True,
+checkpoint = ModelCheckpoint(model_weights_path, monitor='val_loss', verbose=1, save_weights_only=True, save_best_only=True,
                              mode='min')
 tensorboard = TensorBoardBatch()
 callbacks = [checkpoint, tensorboard]
@@ -91,7 +92,7 @@ batchsize = 200
 epochs = 20
 
 model.fit_generator(train_generator(batchsize=batchsize),
-                    steps_per_epoch=250000,
+                    steps_per_epoch=(250000. // batchsize),
                     epochs=epochs, verbose=1, callbacks=callbacks,
                     validation_data=val_generator(batchsize=batchsize),
-                    validation_steps=5000)
+                    validation_steps=(5000. // batchsize))
