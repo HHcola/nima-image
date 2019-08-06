@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*
+import argparse
 import os
 
 from keras.applications import MobileNetV2
@@ -8,7 +9,8 @@ from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
 from keras import backend as K
 
-from utils.data_loader import train_generator, val_generator
+from utils.data_loader import train_generator, val_generator, load_tid_data
+from utils.data_loader import load_ava_data
 
 '''
 Below is a modification to the TensorBoard callback to perform 
@@ -56,6 +58,24 @@ def earth_mover_loss(y_true, y_pred):
     samplewise_emd = K.sqrt(K.mean(K.square(K.abs(cdf_ytrue - cdf_ypred)), axis=-1))
     return K.mean(samplewise_emd)
 
+
+parser = argparse.ArgumentParser(description='Data Load')
+parser.add_argument('-type', type=str, default='ava',
+                    help='Pass a data type to train')
+args = parser.parse_args()
+data_type = 'ava'
+if args.type is not None:
+    data_type = args.type
+
+AVA_DATA_TYPE = 'ava'
+TID2013_DATA_TYPE = 'tid'
+
+if data_type == TID2013_DATA_TYPE:
+    load_tid_data()
+else:
+    load_ava_data()
+
+
 image_size = 224
 
 base_model = MobileNetV2((image_size, image_size, 3), alpha=1.0, include_top=False, pooling='avg')
@@ -89,7 +109,8 @@ tensorboard = TensorBoardBatch()
 callbacks = [checkpoint, tensorboard]
 
 batchsize = 100
-epochs = 20
+# epochs = 20
+epochs = 1
 
 # steps_per_epoch 一个epoch包含的步数（每一步是一个batch的数据输入） steps_per_epoch = image_size(63461) / batchsize
 #  validation_steps=ceil(val_dataset_size/batch_size),

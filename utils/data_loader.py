@@ -1,3 +1,5 @@
+from pandas import json
+
 import numpy as np
 import os
 import glob
@@ -8,30 +10,73 @@ import tensorflow as tf
 base_images_path = r'/home/cola/work/nenet/nima/images-data/AVA_dataset/images/images/'
 ava_dataset_path = r'/home/cola/work/nenet/nima/images-data/AVA_dataset/AVA.txt'
 
+tip_base_images_path = r'/home/cola/work/nenet/nima/images-data/tid2013/distorted_images/'
+tip_dataset_path = r'/home/cola/work/nenet/nima/images-data/tid2013/TID2013/tid_labels_train.json'
+
+
 IMAGE_SIZE = 224
 
 print 'base_images_path = ' + base_images_path
 files = glob.glob(base_images_path + "*.jpg")
 files = sorted(files)
 
-train_image_paths = []
-train_scores = []
+files = glob.glob(base_images_path + "*.bmp")
+files = sorted(files)
+g_train_image_paths = []
+g_train_scores = []
+g_val_image_paths = []
+g_val_scores = []
 
-print("Loading training set and val set")
-with open(ava_dataset_path, mode='r') as f:
+
+def load_tid_data():
+    global g_train_image_paths
+    global g_train_scores
+    global g_val_image_paths
+    global g_val_scores
+    print("Loading training set and val set")
+    f = open(tip_dataset_path, 'r')
+    data = json.load(f)
+    image_size = 0
+    for item in data:
+        image_id = item['image_id']
+        label = item['label']
+        file_path = tip_base_images_path + image_id + '.bmp'
+        if os.path.exists(file_path):
+            g_train_image_paths.append(file_path)
+            g_train_scores.append(label)
+            image_size = image_size + 1
+    g_train_image_paths = np.array(g_train_image_paths)
+    g_train_scores = np.array(g_train_scores, dtype='float32')
+
+    g_val_image_paths = g_train_image_paths[-5000:]
+    g_val_scores = g_train_scores[-5000:]
+    train_image_paths = g_train_image_paths[:-5000]
+    train_scores = g_train_scores[:-5000]
+    print('Train set size : ', train_image_paths.shape, train_scores.shape)
+    print('Val set size : ', g_val_image_paths.shape, g_val_scores.shape)
+    print('Train and validation datasets ready !')
+
+
+def load_ava_data():
+    global g_train_image_paths
+    global g_train_scores
+    global g_val_image_paths
+    global g_val_scores
+    print("Loading training set and val set")
+    f = open(ava_dataset_path, 'r')
     lines = f.readlines()
     image_size = 0
     for i, line in enumerate(lines):
         token = line.split()
-        id = int(token[1])
+        image_id = int(token[1])
 
         values = np.array(token[2:12], dtype='float32')
         values /= values.sum()
 
-        file_path = base_images_path + str(id) + '.jpg'
+        file_path = base_images_path + str(image_id) + '.jpg'
         if os.path.exists(file_path):
-            train_image_paths.append(file_path)
-            train_scores.append(values)
+            g_train_image_paths.append(file_path)
+            g_train_scores.append(values)
             image_size = image_size + 1
 
         if image_size >= 10000:
@@ -41,17 +86,19 @@ with open(ava_dataset_path, mode='r') as f:
         if i % count == 0 and i != 0:
             print('Loaded %d percent of the dataset' % (i / 255000. * 100))
 
-train_image_paths = np.array(train_image_paths)
-train_scores = np.array(train_scores, dtype='float32')
+    g_train_image_paths = np.array(g_train_image_paths)
+    g_train_scores = np.array(g_train_scores, dtype='float32')
 
-val_image_paths = train_image_paths[-5000:]
-val_scores = train_scores[-5000:]
-train_image_paths = train_image_paths[:-5000]
-train_scores = train_scores[:-5000]
+    g_val_image_paths = g_train_image_paths[-5000:]
+    g_val_scores = g_train_scores[-5000:]
+    train_image_paths = g_train_image_paths[:-5000]
+    train_scores = g_train_scores[:-5000]
+    print('Train set size : ', train_image_paths.shape, train_scores.shape)
+    print('Val set size : ', g_val_image_paths.shape, g_val_scores.shape)
+    print('Train and validation datasets ready !')
 
-print('Train set size : ', train_image_paths.shape, train_scores.shape)
-print('Val set size : ', val_image_paths.shape, val_scores.shape)
-print('Train and validation datasets ready !')
+
+
 
 def parse_data(filename, scores):
     '''
@@ -103,7 +150,7 @@ def train_generator(batchsize, shuffle=True):
     '''
     with tf.Session() as sess:
         # create a dataset
-        train_dataset = tf.data.Dataset.from_tensor_slices((train_image_paths, train_scores))
+        train_dataset = tf.data.Dataset.from_tensor_slices((g_train_image_paths, g_train_scores))
         train_dataset = train_dataset.map(parse_data, num_parallel_calls=2)
 
         train_dataset = train_dataset.batch(batchsize)
@@ -140,7 +187,7 @@ def val_generator(batchsize):
         a batch of samples (X_images, y_scores)
     '''
     with tf.Session() as sess:
-        val_dataset = tf.data.Dataset.from_tensor_slices((val_image_paths, val_scores))
+        val_dataset = tf.data.Dataset.from_tensor_slices((g_val_image_paths, g_val_scores))
         val_dataset = val_dataset.map(parse_data_without_augmentation)
 
         val_dataset = val_dataset.batch(batchsize)
