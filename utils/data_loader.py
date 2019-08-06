@@ -1,3 +1,4 @@
+from PIL import Image
 from pandas import json
 
 import numpy as np
@@ -15,13 +16,6 @@ tip_dataset_path = r'/home/cola/work/nenet/nima/images-data/tid2013/TID2013/tid_
 
 
 IMAGE_SIZE = 224
-
-print 'base_images_path = ' + base_images_path
-files = glob.glob(base_images_path + "*.jpg")
-files = sorted(files)
-
-files = glob.glob(base_images_path + "*.bmp")
-files = sorted(files)
 g_train_image_paths = []
 g_train_scores = []
 g_val_image_paths = []
@@ -33,7 +27,10 @@ def load_tid_data():
     global g_train_scores
     global g_val_image_paths
     global g_val_scores
-    print("Loading training set and val set")
+    print("Loading tid training set and val set")
+    print 'tip_base_images_path = ' + tip_base_images_path
+    files = glob.glob(tip_base_images_path + "*.bmp")
+    files = sorted(files)
     f = open(tip_dataset_path, 'r')
     data = json.load(f)
     image_size = 0
@@ -62,7 +59,10 @@ def load_ava_data():
     global g_train_scores
     global g_val_image_paths
     global g_val_scores
-    print("Loading training set and val set")
+    print("Loading ava training set and val set")
+    print 'base_images_path = ' + base_images_path
+    files = glob.glob(base_images_path + "*.jpg")
+    files = sorted(files)
     f = open(ava_dataset_path, 'r')
     lines = f.readlines()
     image_size = 0
@@ -112,7 +112,13 @@ def parse_data(filename, scores):
         an image referred to by the filename and its scores
     '''
     image = tf.read_file(filename)
-    image = tf.image.decode_jpeg(image, channels=3)
+    print 'image format = ' + image.format
+
+    if image.format == 'bmp':
+        image = tf.image.decode_bmp(image, channels=3)
+    else:
+        image = tf.image.decode_jpeg(image, channels=3)
+
     image = tf.image.resize_images(image, (256, 256))
     image = tf.random_crop(image, size=(IMAGE_SIZE, IMAGE_SIZE, 3))
     image = tf.image.random_flip_left_right(image)

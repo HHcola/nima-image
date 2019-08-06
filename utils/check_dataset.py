@@ -1,3 +1,5 @@
+from PIL import Image
+
 import numpy as np
 import os
 import glob
@@ -67,6 +69,17 @@ with sess.as_default():
         try:
             sess.run(img, feed_dict={fn: path})
         except Exception as e:
+            # rename file
+            os.rename(path, path + '_bk')
+            print(path, "failed to load !" + e.message)
+            print()
+            count += 1
+
+        try:
+            img = Image.open(path)
+        except IOError:
+            # rename file
+            os.rename(path, path + '_bk')
             print(path, "failed to load !" + e.message)
             print()
             count += 1
