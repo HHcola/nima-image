@@ -28,6 +28,9 @@ parser.add_argument('-rank', type=str, default='true',
 parser.add_argument('-sf', type=str, default='default',
                     help='save file after they have been scored')
 
+parser.add_argument('-weight', type=str, default='merge',
+                    help='Weight:merge(weight),ava_weight,tid_weight')
+
 args = parser.parse_args()
 resize_image = args.resize.lower() in ("true", "yes", "t", "1")
 target_size = (224, 224) if resize_image else None
@@ -47,13 +50,33 @@ elif args.img[0] is not None:
 else:
     raise RuntimeError('Either -dir or -img arguments must be passed as argument')
 
+
+WEIGHT_TYPE_MERGE = 'merge'
+WEIGHT_TYPE_AVA = 'ava_weight'
+WEIGHT_TYPE_TID = 'tid_weight'
+
+weight_type = 'merge'
+if args.weight is not None:
+    weight_type = args.weight
+
+
+if weight_type == WEIGHT_TYPE_MERGE:
+    model_weights_path = 'weights/mobilenet_v2_weights.h5'
+elif weight_type == WEIGHT_TYPE_AVA:
+    model_weights_path = 'weights/mobilenet_v2_ava_weights.h5'
+elif weight_type == WEIGHT_TYPE_TID:
+    model_weights_path = 'weights/mobilenet_v2_tid_weights.h5'
+else:
+    model_weights_path = 'weights/mobilenet_v2_weights.h5'
+
+
 with tf.device('/CPU:0'):
     base_model = MobileNetV2((None, None, 3), alpha=1.0, include_top=False, pooling='avg', weights=None)
     x = Dropout(0.75)(base_model.output)
     x = Dense(10, activation='softmax')(x)
 
     model = Model(base_model.input, x)
-    model.load_weights('weights/mobilenet_v2_weights.h5')
+    model.load_weights(model_weights_path)
 
     score_list = []
 

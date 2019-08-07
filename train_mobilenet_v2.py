@@ -9,8 +9,7 @@ from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
 from keras import backend as K
 
-from utils.data_loader import train_generator, val_generator, load_tid_data
-from utils.data_loader import load_ava_data
+from utils.data_loader import train_generator, val_generator, load_tid_data, load_ava_data
 
 '''
 Below is a modification to the TensorBoard callback to perform 
@@ -62,13 +61,26 @@ def earth_mover_loss(y_true, y_pred):
 parser = argparse.ArgumentParser(description='Data Load')
 parser.add_argument('-type', type=str, default='ava',
                     help='Pass a data type to train')
+
+parser.add_argument('-weight', type=str, default='merge',
+                    help='Weight:merge(weight),ava_weight,tid_weight')
+
 args = parser.parse_args()
+
+AVA_DATA_TYPE = 'ava'
+TID2013_DATA_TYPE = 'tid'
+
 data_type = 'ava'
 if args.type is not None:
     data_type = args.type
 
-AVA_DATA_TYPE = 'ava'
-TID2013_DATA_TYPE = 'tid'
+WEIGHT_TYPE_MERGE = 'merge'
+WEIGHT_TYPE_AVA = 'ava_weight'
+WEIGHT_TYPE_TID = 'tid_weight'
+
+weight_type = 'merge'
+if args.weight is not None:
+    weight_type = args.weight
 
 if data_type == TID2013_DATA_TYPE:
     load_tid_data()
@@ -98,7 +110,16 @@ model.summary()
 optimizer = Adam(lr=1e-3)
 model.compile(optimizer, loss=earth_mover_loss)
 
-model_weights_path = 'weights/mobilenet_v2_weights.h5'
+if weight_type == WEIGHT_TYPE_MERGE:
+    model_weights_path = 'weights/mobilenet_v2_weights.h5'
+elif weight_type == WEIGHT_TYPE_AVA:
+    model_weights_path = 'weights/mobilenet_v2_ava_weights.h5'
+elif weight_type == WEIGHT_TYPE_TID:
+    model_weights_path = 'weights/mobilenet_v2_tid_weights.h5'
+else:
+    model_weights_path = 'weights/mobilenet_v2_weights.h5'
+
+
 # load weights from trained model if it exists
 if os.path.exists(model_weights_path):
     model.load_weights(model_weights_path)
@@ -109,8 +130,7 @@ tensorboard = TensorBoardBatch()
 callbacks = [checkpoint, tensorboard]
 
 batchsize = 100
-# epochs = 20
-epochs = 1
+epochs = 20
 
 # steps_per_epoch 一个epoch包含的步数（每一步是一个batch的数据输入） steps_per_epoch = image_size(63461) / batchsize
 #  validation_steps=ceil(val_dataset_size/batch_size),

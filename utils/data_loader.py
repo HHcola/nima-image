@@ -1,4 +1,3 @@
-from PIL import Image
 from pandas import json
 
 import numpy as np
@@ -38,10 +37,16 @@ def load_tid_data():
         image_id = item['image_id']
         label = item['label']
         file_path = tip_base_images_path + image_id + '.bmp'
+        file_path_BMP = tip_base_images_path + image_id + '.BMP'
         if os.path.exists(file_path):
             g_train_image_paths.append(file_path)
             g_train_scores.append(label)
             image_size = image_size + 1
+        elif os.path.exists(file_path_BMP):
+            g_train_image_paths.append(file_path_BMP)
+            g_train_scores.append(label)
+            image_size = image_size + 1
+
     g_train_image_paths = np.array(g_train_image_paths)
     g_train_scores = np.array(g_train_scores, dtype='float32')
 
@@ -112,13 +117,8 @@ def parse_data(filename, scores):
         an image referred to by the filename and its scores
     '''
     image = tf.read_file(filename)
-    print 'image format = ' + image.format
-
-    if image.format == 'bmp':
-        image = tf.image.decode_bmp(image, channels=3)
-    else:
-        image = tf.image.decode_jpeg(image, channels=3)
-
+    # image = tf.image.decode_image(image, channels=3)
+    image = parseImage(image)
     image = tf.image.resize_images(image, (256, 256))
     image = tf.random_crop(image, size=(IMAGE_SIZE, IMAGE_SIZE, 3))
     image = tf.image.random_flip_left_right(image)
@@ -137,10 +137,17 @@ def parse_data_without_augmentation(filename, scores):
         an image referred to by the filename and its scores
     '''
     image = tf.read_file(filename)
-    image = tf.image.decode_jpeg(image, channels=3)
+    # image = tf.image.decode_jpeg(image, channels=3)
+    image = parseImage(image)
     image = tf.image.resize_images(image, (IMAGE_SIZE, IMAGE_SIZE))
     image = (tf.cast(image, tf.float32) - 127.5) / 127.5
     return image, scores
+
+def parseImage(image):
+    return tf.cond(
+        tf.image.is_jpeg(image),
+        lambda: tf.image.decode_jpeg(image, channels=3),
+        lambda: tf.image.decode_bmp(image, channels=3))
 
 def train_generator(batchsize, shuffle=True):
     '''
