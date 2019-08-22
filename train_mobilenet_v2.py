@@ -8,8 +8,11 @@ from keras.layers import Dense, Dropout
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
 from keras import backend as K
+from matplotlib import pyplot
 
 from utils.data_loader import train_generator, val_generator, load_tid_data, load_ava_data
+from utils.evaluation import srcc, lcc
+from utils.threadsafe import threadsafe_generator
 
 '''
 Below is a modification to the TensorBoard callback to perform 
@@ -17,15 +20,15 @@ batchwise writing to the tensorboard, instead of only at the end
 of the batch.
 '''
 class TensorBoardBatch(TensorBoard):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, val_gen=0, *args, **kwargs):
         super(TensorBoardBatch, self).__init__(*args)
 
         # conditionally import tensorflow iff TensorBoardBatch is created
+        self.val_gen = val_gen
         self.tf = __import__('tensorflow')
 
     def on_batch_end(self, batch, logs=None):
         logs = logs or {}
-
         for name, value in logs.items():
             if name in ['batch', 'size']:
                 continue
@@ -39,7 +42,11 @@ class TensorBoardBatch(TensorBoard):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-
+        val_batch = next(val_gen)
+        y_true = val_batch[1]
+        y_pred = self.model.predict_on_batch(val_batch[0])
+        rho = srcc(y_true, y_pred)
+        print("\n SRCC = {}".format(rho))
         for name, value in logs.items():
             if name in ['batch', 'size']:
                 continue
@@ -48,7 +55,7 @@ class TensorBoardBatch(TensorBoard):
             summary_value.simple_value = value.item()
             summary_value.tag = name
             self.writer.add_summary(summary, epoch * self.batch_size)
-
+        # numpy.corrcoef(list1, list2)[0, 1]  from scipy.stats import spearmanr
         self.writer.flush()
 
 def earth_mover_loss(y_true, y_pred):
@@ -84,8 +91,10 @@ if args.weight is not None:
 
 if data_type == TID2013_DATA_TYPE:
     load_tid_data()
+    image_all_size = 3000
 else:
     load_ava_data()
+    image_all_size = 63461
 
 
 image_size = 224
@@ -108,7 +117,7 @@ model.summary()
 
 # 优化器
 optimizer = Adam(lr=1e-3)
-model.compile(optimizer, loss=earth_mover_loss)
+model.compile(optimizer, loss=earth_mover_loss, metrics=[lcc, srcc])
 
 if weight_type == WEIGHT_TYPE_MERGE:
     model_weights_path = 'weights/mobilenet_v2_weights.h5'
@@ -117,25 +126,38 @@ elif weight_type == WEIGHT_TYPE_AVA:
 elif weight_type == WEIGHT_TYPE_TID:
     model_weights_path = 'weights/mobilenet_v2_tid_weights.h5'
 else:
-    model_weights_path = 'weights/mobilenet_v2_weights.h5'
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                model_weights_path = 'weights/mobilenet_v2_weights.h5'
 
-
+print ''
 # load weights from trained model if it exists
 if os.path.exists(model_weights_path):
     model.load_weights(model_weights_path)
 
 checkpoint = ModelCheckpoint(model_weights_path, monitor='val_loss', verbose=1, save_weights_only=True, save_best_only=True,
                              mode='min')
-tensorboard = TensorBoardBatch()
+
+
+batchsize = 200
+epochs = 20
+steps = 1
+
+val_gen = threadsafe_generator(val_generator(batchsize=batchsize))
+tensorboard = TensorBoardBatch(val_gen)
 callbacks = [checkpoint, tensorboard]
 
-batchsize = 100
-epochs = 20
 
 # steps_per_epoch 一个epoch包含的步数（每一步是一个batch的数据输入） steps_per_epoch = image_size(63461) / batchsize
-#  validation_steps=ceil(val_dataset_size/batch_size),
-model.fit_generator(train_generator(batchsize=batchsize),
-                    steps_per_epoch=100,
+# validation_steps=ceil(val_dataset_size/batch_size),
+history = model.fit_generator(train_generator(batchsize=batchsize),
+                    steps_per_epoch=steps,
                     epochs=epochs, verbose=1, callbacks=callbacks,
-                    validation_data=val_generator(batchsize=batchsize),
-                    validation_steps=100)
+                    validation_data=val_gen,
+                    validation_steps=20)
+
+# plot metrics
+pyplot.plot(history.history['lcc'])
+pyplot.show()
+
+pyplot.plot(history.history['srcc'])
+pyplot.show()
+

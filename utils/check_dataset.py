@@ -73,6 +73,10 @@ with sess.as_default():
 
         try:
             img = Image.open(path)
+            if not img.verify():
+                os.rename(path, path + '_bk')
+                print(path, "failed to load !" + e.message)
+                print()
         except IOError:
             # rename file
             os.rename(path, path + '_bk')
