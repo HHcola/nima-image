@@ -42,11 +42,6 @@ class TensorBoardBatch(TensorBoard):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        val_batch = next(val_gen)
-        y_true = val_batch[1]
-        y_pred = self.model.predict_on_batch(val_batch[0])
-        rho = srcc(y_true, y_pred)
-        print("\n SRCC = {}".format(rho))
         for name, value in logs.items():
             if name in ['batch', 'size']:
                 continue
