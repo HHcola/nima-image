@@ -60,6 +60,12 @@ def earth_mover_loss(y_true, y_pred):
     return K.mean(samplewise_emd)
 
 
+def earth_mover_loss_tanh(y_true, y_pred):
+    cdf_ytrue = K.cumsum(K.tanh(y_true), axis=-1)
+    cdf_ypred = K.cumsum(K.tanh(y_pred), axis=-1)
+    samplewise_emd = K.sqrt(K.mean(K.square(K.abs(cdf_ytrue - cdf_ypred)), axis=-1))
+    return K.mean(samplewise_emd)
+
 parser = argparse.ArgumentParser(description='Data Load')
 parser.add_argument('-type', type=str, default='ava',
                     help='Pass a data type to train')
@@ -112,7 +118,7 @@ model.summary()
 
 # 优化器
 optimizer = Adam(lr=1e-3)
-model.compile(optimizer, loss=earth_mover_loss, metrics=[lcc, srcc])
+model.compile(optimizer, loss=earth_mover_loss_tanh, metrics=[lcc, srcc])
 
 if weight_type == WEIGHT_TYPE_MERGE:
     model_weights_path = 'weights/mobilenet_v2_weights.h5'
