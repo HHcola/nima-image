@@ -9,9 +9,10 @@ from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
 from keras import backend as K
 from matplotlib import pyplot
+import tensorflow as tf
 
 from utils.data_loader import train_generator, val_generator, load_tid_data, load_ava_data
-from utils.evaluation import srcc, lcc
+from utils.evaluation import srcc, lcc, tf_pearson
 from utils.threadsafe import threadsafe_generator
 
 '''
@@ -116,9 +117,23 @@ x = Dense(10, activation='softmax')(x)
 model = Model(base_model.input, x)
 model.summary()
 
+
+def rmse(y_true, y_pred):
+    return K.sqrt(K.mean(K.square(y_pred - y_true), axis=-1))
+
+def lccv(y_true, y_pred):
+    return tf_pearson(y_true, y_pred)
+    # return tf.convert_to_tensor(r_lcc)
+
+
 # 优化器
 optimizer = Adam(lr=1e-3)
-model.compile(optimizer, loss=earth_mover_loss_tanh, metrics=[lcc, srcc])
+model.compile(optimizer, loss=earth_mover_loss_tanh, metrics=[lccv, srcc])
+
+# tensorflow variables need to be initialized before calling model.fit()
+# there is also a tf.global_variables_initializer(); that one doesn't seem to do the trick
+# You will still get a FailedPreconditionError
+K.get_session().run(tf.local_variables_initializer())
 
 if weight_type == WEIGHT_TYPE_MERGE:
     model_weights_path = 'weights/mobilenet_v2_weights.h5'
@@ -139,7 +154,7 @@ checkpoint = ModelCheckpoint(model_weights_path, monitor='val_loss', verbose=1, 
 
 
 batchsize = 200
-epochs = 20
+epochs = 5
 steps = 1
 
 val_gen = threadsafe_generator(val_generator(batchsize=batchsize))
@@ -156,7 +171,7 @@ history = model.fit_generator(train_generator(batchsize=batchsize),
                     validation_steps=20)
 
 # plot metrics
-pyplot.plot(history.history['lcc'])
+pyplot.plot(history.history['lccv'])
 pyplot.show()
 
 pyplot.plot(history.history['srcc'])
